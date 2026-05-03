@@ -327,31 +327,62 @@ extension View {
 }
 
 // MARK: - Live Pulse Indicator
+//
+// Two styles:
+//   • .standard — original behavior. Inner solid 8pt dot + outer ring
+//     that scales 1→2 and fades 0.5→0 over 1.0s ease-in-out, repeat-
+//     forever (no autoreverse). Used for prominent LIVE indicators.
+//   • .soft — ambient opacity-only pulse for secondary surfaces (e.g.,
+//     repeated game-card chat-count dots). Single inner dot whose
+//     opacity oscillates 0.45 ↔ 1.0 over 1.4s ease-in-out auto-
+//     reversing. No scale, no outer ring. Reads as breathing rather
+//     than pinging.
 struct LivePulseIndicator: View {
+    enum Style { case standard, soft }
+
     var color: Color = FanChatTheme.liveIndicator
     var animated: Bool = true
+    var style: Style = .standard
     @State private var isPulsing = false
+    @State private var softOpacity: Double = 1.0
 
     var body: some View {
         ZStack {
-            // Outer pulse (only when animated)
-            if animated {
+            switch style {
+            case .standard:
+                // Outer pulse (only when animated)
+                if animated {
+                    Circle()
+                        .fill(color)
+                        .frame(width: 12, height: 12)
+                        .scaleEffect(isPulsing ? 2 : 1)
+                        .opacity(isPulsing ? 0 : 0.5)
+                }
+
+                // Inner solid
                 Circle()
                     .fill(color)
-                    .frame(width: 12, height: 12)
-                    .scaleEffect(isPulsing ? 2 : 1)
-                    .opacity(isPulsing ? 0 : 0.5)
-            }
+                    .frame(width: 8, height: 8)
 
-            // Inner solid
-            Circle()
-                .fill(color)
-                .frame(width: 8, height: 8)
+            case .soft:
+                // Inner dot only — opacity-only ambient pulse.
+                Circle()
+                    .fill(color)
+                    .frame(width: 8, height: 8)
+                    .opacity(animated ? softOpacity : 1.0)
+            }
         }
         .onAppear {
-            if animated {
+            guard animated else { return }
+            switch style {
+            case .standard:
                 withAnimation(.easeInOut(duration: 1.0).repeatForever(autoreverses: false)) {
                     isPulsing = true
+                }
+            case .soft:
+                // 1.4s breathe, autoreverses, lower opacity floor.
+                withAnimation(.easeInOut(duration: 1.4).repeatForever(autoreverses: true)) {
+                    softOpacity = 0.45
                 }
             }
         }

@@ -1,6 +1,29 @@
 import Combine
 import SwiftUI
 
+// MARK: - LIVE page UI variant toggle
+//
+// Single switch that gates the LIVE page UI experiment. Flip back to
+// `.current` to instantly restore the pre-experiment look. The toggle
+// is read by every LIVE-page surface (sections, cards, filters, trending
+// carousel, upcoming rows) — it never branches data flow, navigation,
+// actions, or state. Scope is intentionally local to LiveGamesView.swift
+// so the experiment can't leak into team pages, threads, or chat cards.
+//
+//   .current  → preserve original heavy-card LIVE page (rollback target)
+//   .refined  → live-stream-style refined LIVE page (active experiment)
+//
+// To revert: change `.refined` to `.current` on the line below. No other
+// edits required.
+enum LivePageUIVariant {
+    case current
+    case refined
+}
+
+private let livePageUIVariant: LivePageUIVariant = .refined
+
+private var liveRefined: Bool { livePageUIVariant == .refined }
+
 struct LiveGamesView: View {
     @StateObject private var viewModel = LiveGamesViewModel()
     @ObservedObject var preferences = UserPreferences.shared
@@ -32,9 +55,12 @@ struct LiveGamesView: View {
                         .background(FanChatTheme.backgroundPrimary)
                         .zIndex(1)
 
-                    // Scrollable content
+                    // Scrollable content. Section order is now Trending →
+                    // LIVE NOW → Your Teams → Coming Up in both variants.
+                    // The refined variant only differs in vertical rhythm
+                    // (tighter spacing/padding); ordering is identical.
                     ScrollView {
-                        VStack(spacing: 24) {
+                        VStack(spacing: liveRefined ? 18 : 24) {
                             trendingRoomsSection
 
                             liveNowSection
@@ -45,7 +71,7 @@ struct LiveGamesView: View {
 
                             upcomingGamesSection
                         }
-                        .padding(.top, 14)
+                        .padding(.top, liveRefined ? 10 : 14)
                         .padding(.bottom, 40)
                         .background(
                             // Invisible offset tracker — kept out of VStack flow
@@ -212,13 +238,19 @@ struct LiveGamesView: View {
     }
 
     private var liveNowSection: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            sectionHeader(title: "LIVE NOW", color: FanChatTheme.liveIndicator)
+        VStack(alignment: .leading, spacing: liveRefined ? 8 : 10) {
+            // Refined variant gives LIVE NOW the primary section header
+            // weight so it reads as more dominant than TRENDING.
+            sectionHeader(
+                title: "LIVE NOW",
+                color: FanChatTheme.liveIndicator,
+                emphasis: liveRefined ? .primary : .standard
+            )
 
             // League filter
             leagueFilter
 
-            LazyVStack(spacing: 12) {
+            LazyVStack(spacing: liveRefined ? 8 : 12) {
                 let accentColors: [Color] = [
                     FanChatTheme.neonGreen, FanChatTheme.neonCyan,
                     FanChatTheme.neonOrange, FanChatTheme.neonPurple,
@@ -240,7 +272,7 @@ struct LiveGamesView: View {
 
     private var leagueFilter: some View {
         ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 10) {
+            HStack(spacing: liveRefined ? 8 : 10) {
                 leagueChip(label: "All", icon: nil, isSelected: selectedLeagueFilter == nil) {
                     selectedGame = nil
                     selectedLeagueFilter = nil
@@ -263,17 +295,17 @@ struct LiveGamesView: View {
             let generator = UIImpactFeedbackGenerator(style: .light)
             generator.impactOccurred()
         } label: {
-            HStack(spacing: 6) {
+            HStack(spacing: liveRefined ? 5 : 6) {
                 if let icon = icon {
                     Image(systemName: icon)
-                        .font(.system(size: 14, weight: .semibold))
+                        .font(.system(size: liveRefined ? 12 : 14, weight: .semibold))
                 }
                 Text(label)
-                    .font(.system(size: 14, weight: .bold))
+                    .font(.system(size: liveRefined ? 13 : 14, weight: liveRefined ? .semibold : .bold))
             }
             .foregroundColor(isSelected ? .white : FanChatTheme.textSecondary)
-            .padding(.horizontal, 16)
-            .padding(.vertical, 10)
+            .padding(.horizontal, liveRefined ? 12 : 16)
+            .padding(.vertical, liveRefined ? 7 : 10)
             .background(
                 Capsule()
                     .fill(isSelected ?
@@ -282,7 +314,7 @@ struct LiveGamesView: View {
             )
             .overlay(
                 Capsule()
-                    .stroke(isSelected ? Color.clear : FanChatTheme.backgroundTertiary, lineWidth: 1)
+                    .stroke(isSelected ? Color.clear : FanChatTheme.backgroundTertiary.opacity(liveRefined ? 0.6 : 1.0), lineWidth: liveRefined ? 0.5 : 1)
             )
         }
     }
@@ -290,8 +322,14 @@ struct LiveGamesView: View {
     // MARK: - Trending Rooms (auto-scrolling carousel)
 
     private var trendingRoomsSection: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            sectionHeader(title: "TRENDING", color: FanChatTheme.liveIndicator)
+        VStack(alignment: .leading, spacing: liveRefined ? 6 : 10) {
+            // Refined variant: subordinate header weight (textTertiary,
+            // smaller) so TRENDING reads as secondary to LIVE NOW.
+            sectionHeader(
+                title: "TRENDING",
+                color: liveRefined ? FanChatTheme.textTertiary : FanChatTheme.liveIndicator,
+                emphasis: liveRefined ? .subordinate : .standard
+            )
 
             TrendingCarousel(rooms: viewModel.trendingRooms)
         }
@@ -300,8 +338,12 @@ struct LiveGamesView: View {
     // MARK: - Your Teams
 
     private var yourTeamsSection: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            sectionHeader(title: "YOUR TEAMS", color: FanChatTheme.neonCyan)
+        VStack(alignment: .leading, spacing: liveRefined ? 8 : 10) {
+            sectionHeader(
+                title: "YOUR TEAMS",
+                color: FanChatTheme.neonCyan,
+                emphasis: liveRefined ? .subordinate : .standard
+            )
 
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 12) {
@@ -324,10 +366,15 @@ struct LiveGamesView: View {
     @ViewBuilder
     private var upcomingGamesSection: some View {
         if !filteredUpcomingGames.isEmpty {
-            VStack(alignment: .leading, spacing: 10) {
-                sectionHeader(title: "COMING UP", color: FanChatTheme.liveIndicator)
+            VStack(alignment: .leading, spacing: liveRefined ? 6 : 10) {
+                // Refined: COMING UP reads as secondary to LIVE NOW
+                sectionHeader(
+                    title: "COMING UP",
+                    color: liveRefined ? FanChatTheme.textTertiary : FanChatTheme.liveIndicator,
+                    emphasis: liveRefined ? .subordinate : .standard
+                )
 
-                VStack(spacing: 12) {
+                VStack(spacing: liveRefined ? 6 : 12) {
                     ForEach(filteredUpcomingGames) { game in
                         UpcomingGameRow(
                             game: game,
@@ -344,13 +391,43 @@ struct LiveGamesView: View {
     }
 
     // MARK: - Section Header
+    //
+    // `emphasis` controls weight only — it does not change the title or
+    // color the caller passes in. Used by the refined variant to give
+    // LIVE NOW a primary look (larger, white-ish) while making TRENDING
+    // / COMING UP / YOUR TEAMS read as subordinate (smaller, dimmer).
 
-    private func sectionHeader(title: String, color: Color) -> some View {
-        HStack {
+    enum SectionHeaderEmphasis {
+        case standard    // current pre-experiment look (11pt black)
+        case primary     // refined: bigger, brighter — for LIVE NOW
+        case subordinate // refined: dimmer — for trending / coming up
+    }
+
+    private func sectionHeader(title: String, color: Color, emphasis: SectionHeaderEmphasis = .standard) -> some View {
+        let fontSize: CGFloat
+        let weight: Font.Weight
+        let tracking: CGFloat
+        switch emphasis {
+        case .standard:
+            fontSize = 11; weight = .black; tracking = 2
+        case .primary:
+            fontSize = 13; weight = .black; tracking = 1.8
+        case .subordinate:
+            fontSize = 10; weight = .heavy; tracking = 1.6
+        }
+
+        return HStack(spacing: 6) {
+            // Refined LIVE NOW gets a small pulse dot inline so the
+            // primary section reads as actively live at a glance.
+            if liveRefined && emphasis == .primary {
+                LivePulseIndicator(color: color, animated: true)
+                    .scaleEffect(0.7)
+            }
+
             Text(title)
-                .font(.system(size: 11, weight: .black))
+                .font(.system(size: fontSize, weight: weight))
                 .foregroundColor(color)
-                .tracking(2)
+                .tracking(tracking)
             Spacer()
         }
         .padding(.horizontal, 16)
@@ -504,8 +581,11 @@ struct TrendingCarousel: View {
     @State private var selectedRoom: TrendingRoom?
     @State private var showRoom = false
 
-    private let cardWidth: CGFloat = 160
-    private let spacing: CGFloat = 10
+    // Refined variant uses smaller cards so the carousel takes less
+    // vertical real estate and reads as secondary to LIVE NOW.
+    private var cardWidth: CGFloat { liveRefined ? 144 : 160 }
+    private var cardHeight: CGFloat { liveRefined ? 108 : 130 }
+    private var spacing: CGFloat { liveRefined ? 8 : 10 }
 
     private var setWidth: CGFloat {
         CGFloat(rooms.count) * (cardWidth + spacing)
@@ -564,7 +644,7 @@ struct TrendingCarousel: View {
                     }
             )
         }
-        .frame(height: 130)
+        .frame(height: cardHeight)
         .clipped()
         .contentShape(Rectangle())
         .navigationDestination(isPresented: $showRoom) {
@@ -590,6 +670,14 @@ struct TrendingCarousel: View {
 
 struct LiveGameScoreboardRow: View {
     let game: LiveGame
+    /// Opt-in pulsing LIVE dot. Defaults to false to preserve the
+    /// pre-experiment look on every other surface that renders this
+    /// row (e.g., team-page banner).
+    var liveAnimated: Bool = false
+    /// When false, omits the LIVE dot entirely and renders only the
+    /// static red "LIVE" text. Used by the refined LIVE-page card to
+    /// keep list items motion-free per the motion-hierarchy rule.
+    var showLiveDot: Bool = true
 
     private func teamBadge(_ team: SportsTeam) -> some View {
         ZStack {
@@ -627,7 +715,9 @@ struct LiveGameScoreboardRow: View {
             // Center: status
             VStack(spacing: 3) {
                 HStack(spacing: 4) {
-                    LivePulseIndicator(animated: false)
+                    if showLiveDot {
+                        LivePulseIndicator(animated: liveAnimated)
+                    }
                     Text("LIVE")
                         .font(.system(size: 10, weight: .black))
                         .foregroundColor(FanChatTheme.liveIndicator)
@@ -678,14 +768,27 @@ struct LiveGameCardExpanded: View {
     let formattedFanCount: String
     let pulseColor: Color
 
+    // Refined variant: flatter card. Lighter background, smaller corner
+    // radius, hairline border, no shadow, and a pulsing LIVE dot in the
+    // scoreboard for subtle live polish.
+    private var cornerRadius: CGFloat { liveRefined ? 14 : 18 }
+
     var body: some View {
         VStack(spacing: 0) {
-            LiveGameScoreboardRow(game: game)
+            // Refined variant strips motion off the list items: no
+            // pulsing red LIVE dot — just static "LIVE" text.
+            // (`liveAnimated` stays at its default false; the dot itself
+            // is hidden via `showLiveDot: false`.)
+            LiveGameScoreboardRow(
+                game: game,
+                liveAnimated: false,
+                showLiveDot: !liveRefined
+            )
 
             // Divider
             Rectangle()
-                .fill(FanChatTheme.backgroundTertiary)
-                .frame(height: 1)
+                .fill(FanChatTheme.backgroundTertiary.opacity(liveRefined ? 0.6 : 1.0))
+                .frame(height: liveRefined ? 0.5 : 1)
                 .padding(.horizontal, 16)
 
             // Bottom bar: league + fans + join
@@ -702,13 +805,21 @@ struct LiveGameCardExpanded: View {
                 .frame(maxWidth: .infinity)
 
                 Rectangle()
-                    .fill(FanChatTheme.backgroundTertiary)
-                    .frame(width: 1, height: 24)
+                    .fill(FanChatTheme.backgroundTertiary.opacity(liveRefined ? 0.6 : 1.0))
+                    .frame(width: liveRefined ? 0.5 : 1, height: 24)
 
-                // Fans
+                // Fans — chat-count indicator is the ONE list-item dot
+                // that keeps motion. Refined variant uses the soft
+                // ambient pulse (1.4s opacity-only breathe) so the card
+                // feels alive without a hard ping. `.current` keeps the
+                // original standard pulse to preserve baseline.
                 VStack(spacing: 1) {
                     HStack(spacing: 4) {
-                        LivePulseIndicator(color: pulseColor)
+                        LivePulseIndicator(
+                            color: pulseColor,
+                            animated: true,
+                            style: liveRefined ? .soft : .standard
+                        )
                         Text(formattedFanCount)
                             .font(.system(size: 14, weight: .black, design: .monospaced))
                             .foregroundColor(FanChatTheme.textPrimary)
@@ -720,8 +831,8 @@ struct LiveGameCardExpanded: View {
                 .frame(maxWidth: .infinity)
 
                 Rectangle()
-                    .fill(FanChatTheme.backgroundTertiary)
-                    .frame(width: 1, height: 24)
+                    .fill(FanChatTheme.backgroundTertiary.opacity(liveRefined ? 0.6 : 1.0))
+                    .frame(width: liveRefined ? 0.5 : 1, height: 24)
 
                 // Join CTA — glass style
                 HStack(spacing: 4) {
@@ -744,15 +855,20 @@ struct LiveGameCardExpanded: View {
                 .frame(maxWidth: .infinity)
             }
             .padding(.horizontal, 14)
-            .padding(.vertical, 8)
+            .padding(.vertical, liveRefined ? 6 : 8)
         }
         .background(
-            RoundedRectangle(cornerRadius: 18)
-                .fill(FanChatTheme.cardGradient)
+            RoundedRectangle(cornerRadius: cornerRadius)
+                .fill(liveRefined
+                      ? AnyShapeStyle(FanChatTheme.backgroundSecondary.opacity(0.6))
+                      : AnyShapeStyle(FanChatTheme.cardGradient))
         )
         .overlay(
-            RoundedRectangle(cornerRadius: 18)
-                .stroke(FanChatTheme.backgroundTertiary, lineWidth: 1)
+            RoundedRectangle(cornerRadius: cornerRadius)
+                .stroke(
+                    liveRefined ? Color.white.opacity(0.06) : FanChatTheme.backgroundTertiary,
+                    lineWidth: liveRefined ? 0.5 : 1
+                )
         )
     }
 }
@@ -814,12 +930,19 @@ struct TrendingRoomCard: View {
             : "\(room.activeUsers)"
     }
 
+    // Refined variant: smaller card, lighter chrome — secondary to the
+    // LIVE NOW stack. Numbers match TrendingCarousel.cardWidth/cardHeight.
+    private var width: CGFloat { liveRefined ? 144 : 160 }
+    private var height: CGFloat { liveRefined ? 108 : 130 }
+    private var pad: CGFloat { liveRefined ? 11 : 14 }
+    private var cornerRadius: CGFloat { liveRefined ? 14 : 18 }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             // Top: emoji + badge
             HStack(alignment: .top) {
                 Text(room.emoji)
-                    .font(.system(size: 24))
+                    .font(.system(size: liveRefined ? 22 : 24))
 
                 Spacer()
 
@@ -853,29 +976,36 @@ struct TrendingRoomCard: View {
 
             // Title
             Text(room.title)
-                .font(.system(size: 14, weight: .bold))
+                .font(.system(size: liveRefined ? 13 : 14, weight: .bold))
                 .foregroundColor(FanChatTheme.textPrimary)
                 .lineLimit(2)
-                .padding(.bottom, 5)
+                .padding(.bottom, liveRefined ? 4 : 5)
 
-            // Active users
+            // Active users — refined keeps the dot static (motion
+            // hierarchy: list items stay still). `.current` keeps the
+            // baseline animated dot.
             HStack(spacing: 4) {
-                LivePulseIndicator(color: room.accentColor)
+                LivePulseIndicator(color: room.accentColor, animated: !liveRefined)
 
                 Text("\(formattedUsers) active")
-                    .font(.system(size: 11, weight: .semibold))
+                    .font(.system(size: liveRefined ? 10 : 11, weight: .semibold))
                     .foregroundColor(FanChatTheme.textTertiary)
             }
         }
-        .padding(14)
-        .frame(width: 160, height: 130)
+        .padding(pad)
+        .frame(width: width, height: height)
         .background(
-            RoundedRectangle(cornerRadius: 18)
-                .fill(FanChatTheme.cardGradient)
+            RoundedRectangle(cornerRadius: cornerRadius)
+                .fill(liveRefined
+                      ? AnyShapeStyle(FanChatTheme.backgroundSecondary.opacity(0.6))
+                      : AnyShapeStyle(FanChatTheme.cardGradient))
         )
         .overlay(
-            RoundedRectangle(cornerRadius: 18)
-                .stroke(room.accentColor.opacity(0.2), lineWidth: 1)
+            RoundedRectangle(cornerRadius: cornerRadius)
+                .stroke(
+                    liveRefined ? room.accentColor.opacity(0.12) : room.accentColor.opacity(0.2),
+                    lineWidth: liveRefined ? 0.5 : 1
+                )
         )
     }
 }
@@ -931,8 +1061,13 @@ struct UpcomingGameRow: View {
     let formattedTime: String
     let onToggleNotify: () -> Void
 
+    // Refined variant: flat row, secondary to live games — half the
+    // vertical padding, lighter background, hairline border, smaller
+    // corner radius.
+    private var cornerRadius: CGFloat { liveRefined ? 10 : 16 }
+
     var body: some View {
-        HStack(spacing: 10) {
+        HStack(spacing: liveRefined ? 8 : 10) {
             // League pill
             Text(game.league.displayName)
                 .font(.system(size: 10, weight: .bold))
@@ -941,16 +1076,16 @@ struct UpcomingGameRow: View {
                 .padding(.vertical, 3)
                 .background(
                     Capsule()
-                        .fill(FanChatTheme.backgroundTertiary)
+                        .fill(FanChatTheme.backgroundTertiary.opacity(liveRefined ? 0.6 : 1.0))
                 )
 
             // Away team
             HStack(spacing: 6) {
                 Text(game.awayTeam.logoEmoji)
-                    .font(.system(size: 16))
+                    .font(.system(size: liveRefined ? 14 : 16))
 
                 Text(game.awayTeam.shortName)
-                    .font(.system(size: 14, weight: .bold))
+                    .font(.system(size: liveRefined ? 13 : 14, weight: .bold))
                     .foregroundColor(FanChatTheme.textPrimary)
             }
 
@@ -961,11 +1096,11 @@ struct UpcomingGameRow: View {
             // Home team
             HStack(spacing: 6) {
                 Text(game.homeTeam.shortName)
-                    .font(.system(size: 14, weight: .bold))
+                    .font(.system(size: liveRefined ? 13 : 14, weight: .bold))
                     .foregroundColor(FanChatTheme.textPrimary)
 
                 Text(game.homeTeam.logoEmoji)
-                    .font(.system(size: 16))
+                    .font(.system(size: liveRefined ? 14 : 16))
             }
 
             Spacer()
@@ -980,20 +1115,25 @@ struct UpcomingGameRow: View {
                 onToggleNotify()
             } label: {
                 Image(systemName: isNotified ? "bell.fill" : "bell")
-                    .font(.system(size: 16))
+                    .font(.system(size: liveRefined ? 14 : 16))
                     .foregroundColor(isNotified ? FanChatTheme.neonOrange : FanChatTheme.textTertiary)
             }
             .buttonStyle(.plain)
         }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 19)
+        .padding(.horizontal, liveRefined ? 12 : 16)
+        .padding(.vertical, liveRefined ? 10 : 19)
         .background(
-            RoundedRectangle(cornerRadius: 16)
-                .fill(FanChatTheme.cardGradient)
+            RoundedRectangle(cornerRadius: cornerRadius)
+                .fill(liveRefined
+                      ? AnyShapeStyle(FanChatTheme.backgroundSecondary.opacity(0.4))
+                      : AnyShapeStyle(FanChatTheme.cardGradient))
         )
         .overlay(
-            RoundedRectangle(cornerRadius: 16)
-                .stroke(FanChatTheme.backgroundTertiary, lineWidth: 1)
+            RoundedRectangle(cornerRadius: cornerRadius)
+                .stroke(
+                    liveRefined ? Color.white.opacity(0.04) : FanChatTheme.backgroundTertiary,
+                    lineWidth: liveRefined ? 0.5 : 1
+                )
         )
     }
 }
