@@ -1,0 +1,24 @@
+# Xcode
+build/
+DerivedData/
+*.xcuserstate
+xcuserdata/
+*.xcscmblueprint
+*.xccheckout
+*.moved-aside
+
+# Swift Package Manager
+.build/
+.swiftpm/
+Packages/
+Package.pins
+*.xcworkspace/xcshareddata/swiftpm/xcode/
+
+# Local secrets — credential xcconfigs are NEVER committed.
+# Commit the corresponding `*.xcconfig.example` instead so collaborators
+# know the expected key names.
+Supabase.xcconfig
+*.local.xcconfig
+
+# OS
+.DS_Store

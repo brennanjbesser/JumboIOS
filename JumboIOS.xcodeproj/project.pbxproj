@@ -6,13 +6,32 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		3375A7A22FA464F1009DC7A9 /* Supabase.xcconfig in Resources */ = {isa = PBXBuildFile; fileRef = 3375A7A12FA464F1009DC7A9 /* Supabase.xcconfig */; };
+		33B9FC912F2AF85B00556FA9 /* Supabase in Frameworks */ = {isa = PBXBuildFile; productRef = 33B9FC902F2AF85B00556FA9 /* Supabase */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXFileReference section */
+		3375A7A12FA464F1009DC7A9 /* Supabase.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Supabase.xcconfig; sourceTree = "<group>"; };
 		33B9FC302F2A8E3000556FA9 /* JumboIOS.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = JumboIOS.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
+
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		3375A7A42FA465E9009DC7A9 /* Exceptions for "JumboIOS" folder in "JumboIOS" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = 33B9FC2F2F2A8E3000556FA9 /* JumboIOS */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		33B9FC322F2A8E3000556FA9 /* JumboIOS */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				3375A7A42FA465E9009DC7A9 /* Exceptions for "JumboIOS" folder in "JumboIOS" target */,
+			);
 			path = JumboIOS;
 			sourceTree = "<group>";
 		};
@@ -23,6 +42,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				33B9FC912F2AF85B00556FA9 /* Supabase in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -34,6 +54,7 @@
 			children = (
 				33B9FC322F2A8E3000556FA9 /* JumboIOS */,
 				33B9FC312F2A8E3000556FA9 /* Products */,
+				3375A7A12FA464F1009DC7A9 /* Supabase.xcconfig */,
 			);
 			sourceTree = "<group>";
 		};
@@ -65,6 +86,7 @@
 			);
 			name = JumboIOS;
 			packageProductDependencies = (
+				33B9FC902F2AF85B00556FA9 /* Supabase */,
 			);
 			productName = JumboIOS;
 			productReference = 33B9FC302F2A8E3000556FA9 /* JumboIOS.app */;
@@ -94,6 +116,9 @@
 			);
 			mainGroup = 33B9FC272F2A8E3000556FA9;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				33B9FC8D2F2AF85B00556FA9 /* XCRemoteSwiftPackageReference "supabase-swift" */,
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 33B9FC312F2A8E3000556FA9 /* Products */;
 			projectDirPath = "";
@@ -109,6 +134,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				3375A7A22FA464F1009DC7A9 /* Supabase.xcconfig in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -127,6 +153,7 @@
 /* Begin XCBuildConfiguration section */
 		33B9FC392F2A8E3100556FA9 /* Debug */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = 3375A7A12FA464F1009DC7A9 /* Supabase.xcconfig */;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
@@ -190,6 +217,7 @@
 		};
 		33B9FC3A2F2A8E3100556FA9 /* Release */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = 3375A7A12FA464F1009DC7A9 /* Supabase.xcconfig */;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
@@ -246,13 +274,20 @@
 		};
 		33B9FC3C2F2A8E3100556FA9 /* Debug */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = 3375A7A12FA464F1009DC7A9 /* Supabase.xcconfig */;
 			buildSettings = {
-				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_APPICON_NAME = Jumbo;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = NO;
+				CODE_SIGN_ENTITLEMENTS = JumboIOS/JumboIOS.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 2N64L5J896;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = JumboIOS/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = Jumbo;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.sports";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -277,13 +312,20 @@
 		};
 		33B9FC3D2F2A8E3100556FA9 /* Release */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = 3375A7A12FA464F1009DC7A9 /* Supabase.xcconfig */;
 			buildSettings = {
-				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_APPICON_NAME = Jumbo;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = NO;
+				CODE_SIGN_ENTITLEMENTS = JumboIOS/JumboIOS.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 2N64L5J896;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = JumboIOS/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = Jumbo;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.sports";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -328,6 +370,25 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		33B9FC8D2F2AF85B00556FA9 /* XCRemoteSwiftPackageReference "supabase-swift" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/supabase/supabase-swift";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 2.5.1;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		33B9FC902F2AF85B00556FA9 /* Supabase */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 33B9FC8D2F2AF85B00556FA9 /* XCRemoteSwiftPackageReference "supabase-swift" */;
+			productName = Supabase;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = 33B9FC282F2A8E3000556FA9 /* Project object */;
 }

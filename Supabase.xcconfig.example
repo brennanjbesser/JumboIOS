@@ -1,0 +1,14 @@
+// Supabase.xcconfig.example
+//
+// Template for the (gitignored) Supabase.xcconfig.
+// Copy this file to `Supabase.xcconfig` and fill in your project's values.
+// See SupabaseConfig.swift for the wiring details.
+
+// Project root URL — NO trailing slash, NO `/rest/v1/` path. The SDK
+// appends the path itself. The `/$()/` is an xcconfig escape so `//`
+// isn't treated as a comment delimiter.
+SUPABASE_URL = https:/$()/YOUR_PROJECT_REF.supabase.co
+
+// Publishable / anon key. Safe to embed in clients (RLS protects data),
+// but keep it out of source control to make rotation cheap.
+SUPABASE_ANON_KEY = YOUR_ANON_OR_PUBLISHABLE_KEY
