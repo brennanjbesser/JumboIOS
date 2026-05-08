@@ -377,13 +377,41 @@ class LiveGamesViewModel: ObservableObject {
         // we just hold canonical or reflect the empty refresh.
         if let canonicalLive, !canonicalLive.isEmpty {
             let firstActivation = !useCanonicalLiveGames
+            // Capture previous state so we can log per-game diffs
+            // for debugging realtime sync (e.g.,
+            // "🔄 BAL vs KC: 14-17 → 17-17 [Q2 8:14]"). Indexed by
+            // canonical UUID — that's the merge key.
+            let previousById = Dictionary(uniqueKeysWithValues: liveGames.map { ($0.id, $0) })
+
             useCanonicalLiveGames = true
             liveGames = canonicalLive
             ensureFanCounts(for: canonicalLive)
+
             if firstActivation {
-                liveLogger.info("✅ canonical LIVE NOW activated — \(canonicalLive.count) game(s) (mock sink now blocked)")
+                liveLogger.info("🟢 canonical LIVE NOW activated — \(canonicalLive.count) game(s) (mock sink now blocked)")
             } else {
-                liveLogger.info("✅ canonical LIVE NOW applied — \(canonicalLive.count) game(s)")
+                liveLogger.info("🟢 canonical LIVE NOW applied — \(canonicalLive.count) game(s)")
+            }
+
+            // Per-game diff trace. Cheap (≤handful of games), high
+            // signal during realtime debugging.
+            for game in canonicalLive {
+                if let prev = previousById[game.id] {
+                    if prev.homeScore != game.homeScore || prev.awayScore != game.awayScore {
+                        liveLogger.info("🔄 \(game.awayTeam.shortName) @ \(game.homeTeam.shortName) score: \(prev.awayScore)-\(prev.homeScore) → \(game.awayScore)-\(game.homeScore) [\(game.period) \(game.timeRemaining)]")
+                    } else if prev.status != game.status {
+                        liveLogger.info("🔄 \(game.awayTeam.shortName) @ \(game.homeTeam.shortName) status: \(prev.status.rawValue) → \(game.status.rawValue)")
+                    } else if prev.period != game.period || prev.timeRemaining != game.timeRemaining {
+                        liveLogger.debug("🕒 \(game.awayTeam.shortName) @ \(game.homeTeam.shortName) clock: \(prev.period) \(prev.timeRemaining) → \(game.period) \(game.timeRemaining)")
+                    }
+                } else {
+                    liveLogger.info("➕ \(game.awayTeam.shortName) @ \(game.homeTeam.shortName) entered LIVE NOW (\(game.status.rawValue), \(game.awayScore)-\(game.homeScore))")
+                }
+            }
+            // Removed games (status flipped to final, etc.).
+            let newIds = Set(canonicalLive.map { $0.id })
+            for prev in previousById.values where !newIds.contains(prev.id) {
+                liveLogger.info("➖ \(prev.awayTeam.shortName) @ \(prev.homeTeam.shortName) left LIVE NOW")
             }
         } else if useCanonicalLiveGames {
             // Already-activated path — canonical stays authoritative.
@@ -412,12 +440,27 @@ class LiveGamesViewModel: ObservableObject {
         // started → row drops off) instead of leaving stale data.
         if let canonicalUpcoming, !canonicalUpcoming.isEmpty {
             let firstActivation = !useCanonicalUpcomingGames
+            let previousIds = Set(upcomingGames.map { $0.id })
+
             useCanonicalUpcomingGames = true
             upcomingGames = canonicalUpcoming
+
             if firstActivation {
-                liveLogger.info("✅ canonical COMING UP activated — \(canonicalUpcoming.count) game(s)")
+                liveLogger.info("🟢 canonical COMING UP activated — \(canonicalUpcoming.count) game(s)")
             } else {
-                liveLogger.info("✅ canonical COMING UP applied — \(canonicalUpcoming.count) game(s)")
+                liveLogger.info("🟢 canonical COMING UP applied — \(canonicalUpcoming.count) game(s)")
+            }
+
+            // Diff additions / removals so realtime INSERTs of new
+            // scheduled games and transitions out (game just kicked
+            // off → moved to LIVE NOW) are visible in logs.
+            let newIds = Set(canonicalUpcoming.map { $0.id })
+            for game in canonicalUpcoming where !previousIds.contains(game.id) {
+                liveLogger.info("➕ \(game.awayTeam.shortName) @ \(game.homeTeam.shortName) entered COMING UP (\(game.league.rawValue))")
+            }
+            let removedIds = previousIds.subtracting(newIds)
+            if !removedIds.isEmpty {
+                liveLogger.info("➖ \(removedIds.count) game(s) left COMING UP")
             }
         } else if useCanonicalUpcomingGames {
             if let canonicalUpcoming {
@@ -620,7 +663,7 @@ class LiveGamesViewModel: ObservableObject {
                 if Task.isCancelled { return }
                 guard let self else { return }
                 if newStatus == .unsubscribed {
-                    liveLogger.error("⚠️ games realtime: channel DROPPED — triggering reconnect")
+                    liveLogger.error("⚠️ Realtime disconnected — polling fallback active, triggering reconnect")
                     await self.attemptGamesReconnect(trigger: "watcher")
                 }
             }
@@ -659,10 +702,9 @@ class LiveGamesViewModel: ObservableObject {
     /// Realtime event handler. Logs the receipt + the refresh
     /// trigger; loadGames() handles its own success/error logging.
     private func handleGamesRealtimeChange(kind: String) async {
-        liveLogger.info("📡 games realtime: payload received (kind=\(kind))")
-        liveLogger.info("🔄 games realtime: refresh triggered")
+        liveLogger.info("🟣 Realtime game \(kind) received — refresh triggered")
         await loadGames()
-        liveLogger.info("✅ games realtime: refresh completed")
+        liveLogger.info("✅ Realtime refresh completed")
     }
 
     deinit {
