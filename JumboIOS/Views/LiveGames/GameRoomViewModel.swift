@@ -63,6 +63,13 @@ class GameRoomViewModel: ObservableObject {
 
     init(game: LiveGame) {
         self.game = game
+        // Initial room is always the legacy team-pair model so the
+        // chat surface is never empty while the canonical resolver
+        // is in flight. If a canonical game_rooms.room_id exists for
+        // this game, the async upgrade below swaps the room and
+        // re-subscribes. If it doesn't (mock provider, deleted seed,
+        // network blip), this team-pair room remains the chat scope
+        // — exactly today's behavior.
         self.room = .game(homeTeamId: game.homeTeam.id, awayTeamId: game.awayTeam.id)
 
         service.notificationPublisher
@@ -90,15 +97,64 @@ class GameRoomViewModel: ObservableObject {
         let scopeRoom = room
         let homeShortName = game.homeTeam.shortName
         let awayShortName = game.awayTeam.shortName
-        logger.debug("🎮 GameRoomViewModel.init: matchup \(awayShortName) @ \(homeShortName) → subscribing room=\(scopeRoom.roomType):\(scopeRoom.roomId.uuidString)")
+        logger.debug("🎮 GameRoomViewModel.init: matchup \(awayShortName) @ \(homeShortName) → subscribing room=\(scopeRoom.roomType):\(scopeRoom.roomId.uuidString) (team-pair fallback)")
         Task { @MainActor in
             await subscriptionService.subscribeToPosts(room: scopeRoom)
         }
+
+        // Try to upgrade to the canonical room (one row per real
+        // scheduled game in `public.game_rooms`). Fire-and-forget —
+        // if it succeeds and returns a different roomId, we swap;
+        // if it returns nil, throws, or matches the current
+        // fallback, we stay on team-pair.
+        Task { @MainActor [weak self] in
+            await self?.upgradeToCanonicalRoomIfAvailable()
+        }
     }
 
-    /// Stable room identity captured at init so deinit can tear down the
-    /// matching scope without reading mutable @MainActor state.
-    let room: ChatRoom
+    /// Current chat-room identity. Starts as the legacy team-pair
+    /// `.game(home, away)` and is swapped to `.canonicalGame(roomId:)`
+    /// in `upgradeToCanonicalRoomIfAvailable()` when a row exists in
+    /// `public.game_rooms` for this game. `var` (not `let`) because
+    /// the room can be upgraded mid-flight; deinit captures the
+    /// current value at tear-down time, which is correct for the
+    /// resubscription contract.
+    var room: ChatRoom
+
+    /// Asks SportsGameService for the canonical `game_rooms` row
+    /// matching `game.id`. If one exists with a `room_id` different
+    /// from the current team-pair fallback, switches subscriptions
+    /// and reloads posts. Safe no-op when no row exists, fetch fails,
+    /// or the canonical room id happens to equal the existing one.
+    private func upgradeToCanonicalRoomIfAvailable() async {
+        do {
+            guard let gameRoom = try await SportsGameService.shared.fetchGameRoom(forGameId: game.id) else {
+                logger.info("ℹ️ GameRoomViewModel: no canonical game_rooms row for game \(self.game.id) — staying on team-pair fallback room \(self.room.roomId)")
+                return
+            }
+            let canonicalRoom: ChatRoom = .canonicalGame(roomId: gameRoom.roomId)
+            // Defensive: if the canonical room id somehow matches the
+            // team-pair-derived id (shouldn't happen — different
+            // hashes), don't churn subscriptions.
+            guard canonicalRoom.roomId != room.roomId else {
+                logger.debug("GameRoomViewModel: canonical room id matches team-pair — no upgrade needed")
+                return
+            }
+            logger.info("✅ GameRoomViewModel: upgrading game room \(self.room.roomId) (team-pair) → \(canonicalRoom.roomId) (canonical game_rooms.room_id)")
+            // Tear down the team-pair subscription before we install
+            // the canonical one to avoid double-fanout.
+            let oldRoom = room
+            await service.unsubscribeFromPostScope(room: oldRoom)
+            self.room = canonicalRoom
+            await service.subscribeToPosts(room: canonicalRoom)
+            // Reload posts because the room id changed — the previous
+            // load was for a different (and likely empty) team-pair
+            // scope.
+            await loadPosts()
+        } catch {
+            logger.error("❌ GameRoomViewModel: canonical room fetch threw — staying on team-pair fallback: \(error)")
+        }
+    }
 
     deinit {
         let subscriptionService = service

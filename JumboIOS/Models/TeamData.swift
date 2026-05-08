@@ -256,6 +256,77 @@ struct TeamDatabase {
         nflTeams + nbaTeams + mlbTeams + nhlTeams
     }
 
+    // MARK: - Canonical (Supabase) UUID resolver
+    //
+    // The iOS-authoritative team UUID is computed via
+    // `SportsTeam.stableID(league:shortName:)`, which keys SHA-256
+    // off `"\(league.rawValue)_\(shortName)"`. `League.rawValue` is
+    // UPPERCASE (e.g. "NFL"), so the iOS UUID for the Chiefs comes
+    // from `SHA256("NFL_KC")`.
+    //
+    // Supabase canonical data (public.games, public.teams, future
+    // ingest worker) keys league as LOWERCASE — both the
+    // `teams_league_check` constraint and the seed scripts use
+    // "nfl"/"nba"/"mlb"/"nhl". The deterministic UUIDs in
+    // public.games.home_team_id / away_team_id and public.teams.id
+    // are therefore derived from `SHA256("nfl_KC")` — a completely
+    // different value than iOS computes for the same team.
+    //
+    // The clean cross-platform fix would be to align both sides on
+    // one case (lowercase preferred — matches the migration CHECKs
+    // and the rest of the API surface). But changing iOS's
+    // `stableID` would orphan every persisted UUID in
+    // UserPreferences, posts.team_id, etc. on every existing install.
+    //
+    // So this resolver does the bridging client-side: a precomputed
+    // secondary index keyed by the *lowercase-derived* UUID points
+    // at the same SportsTeam values. The unified
+    // `team(byCanonicalId:)` consults both. Cost is one ~124-entry
+    // dictionary lookup added per resolution; happens once per game
+    // per refresh cycle.
+    //
+    // Future cleanup options (out of scope for this fix):
+    //   • re-seed public.games + public.teams with the uppercase
+    //     derivation, or
+    //   • change `League` rawValues to lowercase + add an explicit
+    //     `displayName` getter that returns "NFL"/"NBA" — and
+    //     migrate any persisted data.
+
+    /// Secondary lookup table keyed by the lowercase-league-form
+    /// UUID. Built once on first access. Mirrors `team.id` -> team
+    /// for every entry in `allTeams`, but with the UUID computed
+    /// from `"<league.rawValue.lowercased())>_<shortName>"` instead
+    /// of the iOS-authoritative uppercase form.
+    private static let supabaseDerivedTeamIndex: [UUID: SportsTeam] = {
+        var map: [UUID: SportsTeam] = [:]
+        for team in allTeams {
+            let key = "\(team.league.rawValue.lowercased())_\(team.shortName)"
+            let digest = SHA256.hash(data: Data(key.utf8))
+            var bytes = Array(digest.prefix(16))
+            bytes[6] = (bytes[6] & 0x0F) | 0x50  // version 5-shape
+            bytes[8] = (bytes[8] & 0x3F) | 0x80  // RFC 4122 variant
+            let id = UUID(uuid: (
+                bytes[0], bytes[1], bytes[2], bytes[3],
+                bytes[4], bytes[5], bytes[6], bytes[7],
+                bytes[8], bytes[9], bytes[10], bytes[11],
+                bytes[12], bytes[13], bytes[14], bytes[15]
+            ))
+            map[id] = team
+        }
+        return map
+    }()
+
+    /// Resolves a team UUID against either derivation flavor. Tries
+    /// the iOS-authoritative `team(byId:)` first (uppercase-league
+    /// derivation), then the Supabase-canonical lowercase index.
+    /// Returns nil only when neither lookup hits — a true data gap.
+    static func team(byCanonicalId id: UUID) -> SportsTeam? {
+        if let team = team(byId: id) {
+            return team
+        }
+        return supabaseDerivedTeamIndex[id]
+    }
+
     static func teams(for league: League) -> [SportsTeam] {
         switch league {
         case .nfl: return nflTeams
