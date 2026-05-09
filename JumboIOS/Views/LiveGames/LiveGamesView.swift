@@ -582,9 +582,13 @@ struct TrendingCarousel: View {
     @State private var showRoom = false
 
     // Refined variant uses smaller cards so the carousel takes less
-    // vertical real estate and reads as secondary to LIVE NOW.
-    private var cardWidth: CGFloat { liveRefined ? 144 : 160 }
-    private var cardHeight: CGFloat { liveRefined ? 108 : 130 }
+    // vertical real estate and reads as secondary to LIVE NOW. Refined
+    // bumped another ~5% (151→159, 113→119) for additional prominence;
+    // current variant left at its prior 168/137 per "apply only to
+    // refined" rule. Spacing and corner radius held — rhythm and
+    // shape stay identical to the previous step.
+    private var cardWidth: CGFloat { liveRefined ? 159 : 168 }
+    private var cardHeight: CGFloat { liveRefined ? 119 : 137 }
     private var spacing: CGFloat { liveRefined ? 8 : 10 }
 
     private var setWidth: CGFloat {
@@ -793,14 +797,28 @@ struct LiveGameCardExpanded: View {
 
             // Bottom bar: league + fans + join
             HStack(spacing: 0) {
-                // League
-                VStack(spacing: 1) {
-                    Text(game.homeTeam.league.displayName)
-                        .font(.system(size: 14, weight: .black))
-                        .foregroundColor(FanChatTheme.textPrimary)
-                    Text("league")
-                        .font(.system(size: 9, weight: .medium))
-                        .foregroundColor(FanChatTheme.textTertiary)
+                // League — refined drops the "league" subtitle and
+                // shows only the abbreviation, bumped to 14pt bold
+                // textSecondary so it lands at roughly the same visual
+                // weight as the centered chat-count number and the
+                // JOIN action on the right. Plain text, no capsule,
+                // no stroke. `.current` keeps the original two-line
+                // primary-then-tertiary VStack for faithful rollback.
+                Group {
+                    if liveRefined {
+                        Text(game.homeTeam.league.displayName)
+                            .font(.system(size: 14, weight: .bold))
+                            .foregroundColor(FanChatTheme.textSecondary)
+                    } else {
+                        VStack(spacing: 1) {
+                            Text(game.homeTeam.league.displayName)
+                                .font(.system(size: 14, weight: .black))
+                                .foregroundColor(FanChatTheme.textPrimary)
+                            Text("league")
+                                .font(.system(size: 9, weight: .medium))
+                                .foregroundColor(FanChatTheme.textTertiary)
+                        }
+                    }
                 }
                 .frame(maxWidth: .infinity)
 
@@ -834,40 +852,60 @@ struct LiveGameCardExpanded: View {
                     .fill(FanChatTheme.backgroundTertiary.opacity(liveRefined ? 0.6 : 1.0))
                     .frame(width: liveRefined ? 0.5 : 1, height: 24)
 
-                // Join CTA — glass style
+                // Join CTA — refined: uppercase "JOIN" at 13pt bold +
+                // 10pt bold chevron, textSecondary for confident
+                // readability. No capsule, no fill, no stroke; the
+                // 14/6 padding + .frame(maxWidth: .infinity) +
+                // .contentShape preserve the original tap region.
+                // `.current` keeps the original "Join" glass-pill for
+                // faithful rollback.
                 HStack(spacing: 4) {
-                    Text("Join")
-                        .font(.system(size: 12, weight: .semibold))
+                    Text(liveRefined ? "JOIN" : "Join")
+                        .font(.system(
+                            size: liveRefined ? 13 : 12,
+                            weight: liveRefined ? .bold : .semibold
+                        ))
                     Image(systemName: "chevron.right")
-                        .font(.system(size: 8, weight: .semibold))
+                        .font(.system(
+                            size: liveRefined ? 10 : 8,
+                            weight: liveRefined ? .bold : .semibold
+                        ))
                 }
                 .foregroundColor(FanChatTheme.textSecondary)
                 .padding(.horizontal, 14)
                 .padding(.vertical, 6)
                 .background(
                     Capsule()
-                        .fill(Color.white.opacity(0.08))
+                        .fill(liveRefined ? Color.clear : Color.white.opacity(0.08))
                 )
                 .overlay(
                     Capsule()
-                        .stroke(Color.white.opacity(0.15), lineWidth: 0.5)
+                        .stroke(
+                            liveRefined ? Color.clear : Color.white.opacity(0.15),
+                            lineWidth: liveRefined ? 0 : 0.5
+                        )
                 )
+                .contentShape(Rectangle())
                 .frame(maxWidth: .infinity)
             }
             .padding(.horizontal, 14)
             .padding(.vertical, liveRefined ? 6 : 8)
         }
         .background(
+            // Refined: match the canonical notification card surface —
+            // FanChatTheme.backgroundSecondary at full opacity, no
+            // outer stroke. `.current` keeps the original cardGradient
+            // + 1pt backgroundTertiary stroke for faithful rollback.
             RoundedRectangle(cornerRadius: cornerRadius)
                 .fill(liveRefined
-                      ? AnyShapeStyle(FanChatTheme.backgroundSecondary.opacity(0.6))
+                      ? AnyShapeStyle(FanChatTheme.backgroundSecondary)
                       : AnyShapeStyle(FanChatTheme.cardGradient))
         )
         .overlay(
             RoundedRectangle(cornerRadius: cornerRadius)
                 .stroke(
-                    liveRefined ? Color.white.opacity(0.06) : FanChatTheme.backgroundTertiary,
-                    lineWidth: liveRefined ? 0.5 : 1
+                    liveRefined ? Color.clear : FanChatTheme.backgroundTertiary,
+                    lineWidth: liveRefined ? 0 : 1
                 )
         )
     }
@@ -931,9 +969,11 @@ struct TrendingRoomCard: View {
     }
 
     // Refined variant: smaller card, lighter chrome — secondary to the
-    // LIVE NOW stack. Numbers match TrendingCarousel.cardWidth/cardHeight.
-    private var width: CGFloat { liveRefined ? 144 : 160 }
-    private var height: CGFloat { liveRefined ? 108 : 130 }
+    // LIVE NOW stack. Numbers match TrendingCarousel.cardWidth/cardHeight
+    // (must stay in sync — the carousel sizes its scroll math from
+    // cardWidth/cardHeight, and a mismatch would clip or overflow).
+    private var width: CGFloat { liveRefined ? 159 : 168 }
+    private var height: CGFloat { liveRefined ? 119 : 137 }
     private var pad: CGFloat { liveRefined ? 11 : 14 }
     private var cornerRadius: CGFloat { liveRefined ? 14 : 18 }
 
@@ -974,9 +1014,10 @@ struct TrendingRoomCard: View {
 
             Spacer()
 
-            // Title
+            // Title — refined gets +1pt to match the larger card
+            // footprint (14 vs the prior 13). Current unchanged.
             Text(room.title)
-                .font(.system(size: liveRefined ? 13 : 14, weight: .bold))
+                .font(.system(size: liveRefined ? 14 : 14, weight: .bold))
                 .foregroundColor(FanChatTheme.textPrimary)
                 .lineLimit(2)
                 .padding(.bottom, liveRefined ? 4 : 5)
@@ -995,15 +1036,37 @@ struct TrendingRoomCard: View {
         .padding(pad)
         .frame(width: width, height: height)
         .background(
+            // Refined: notification card surface —
+            // FanChatTheme.backgroundSecondary, no stroke. The room's
+            // accent color is preserved INSIDE the card (badge fill,
+            // pulse dot), so removing the edge accent stroke loses no
+            // identity. `.current` keeps the original cardGradient +
+            // accent stroke.
             RoundedRectangle(cornerRadius: cornerRadius)
                 .fill(liveRefined
-                      ? AnyShapeStyle(FanChatTheme.backgroundSecondary.opacity(0.6))
+                      ? AnyShapeStyle(FanChatTheme.backgroundSecondary)
                       : AnyShapeStyle(FanChatTheme.cardGradient))
         )
         .overlay(
+            // Refined: very subtle gradient hairline (0.5pt) that
+            // weaves the room's accent into a glassy diagonal — adds
+            // polish without reading as a glow. Top-leading carries a
+            // hint of identity, bottom-trailing fades into a near-
+            // invisible white wash. No animation, no glow.
+            // `.current` keeps the original solid accent-tinted stroke
+            // for faithful rollback.
             RoundedRectangle(cornerRadius: cornerRadius)
                 .stroke(
-                    liveRefined ? room.accentColor.opacity(0.12) : room.accentColor.opacity(0.2),
+                    liveRefined
+                        ? AnyShapeStyle(LinearGradient(
+                            colors: [
+                                room.accentColor.opacity(0.22),
+                                Color.white.opacity(0.05)
+                            ],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                          ))
+                        : AnyShapeStyle(room.accentColor.opacity(0.2)),
                     lineWidth: liveRefined ? 0.5 : 1
                 )
         )
@@ -1068,7 +1131,10 @@ struct UpcomingGameRow: View {
 
     var body: some View {
         HStack(spacing: liveRefined ? 8 : 10) {
-            // League pill
+            // League pill — refined uses backgroundSecondary so the
+            // pill stays distinct against the lifted backgroundTertiary
+            // row (the row got bumped a tier lighter; the pill needs to
+            // sit a tier darker to read).
             Text(game.league.displayName)
                 .font(.system(size: 10, weight: .bold))
                 .foregroundColor(FanChatTheme.textTertiary)
@@ -1076,16 +1142,19 @@ struct UpcomingGameRow: View {
                 .padding(.vertical, 3)
                 .background(
                     Capsule()
-                        .fill(FanChatTheme.backgroundTertiary.opacity(liveRefined ? 0.6 : 1.0))
+                        .fill(liveRefined
+                              ? AnyShapeStyle(FanChatTheme.backgroundSecondary)
+                              : AnyShapeStyle(FanChatTheme.backgroundTertiary))
                 )
 
-            // Away team
+            // Away team — refined matchup text bumps from .bold to
+            // .heavy for slightly stronger emphasis; size unchanged.
             HStack(spacing: 6) {
                 Text(game.awayTeam.logoEmoji)
                     .font(.system(size: liveRefined ? 14 : 16))
 
                 Text(game.awayTeam.shortName)
-                    .font(.system(size: liveRefined ? 13 : 14, weight: .bold))
+                    .font(.system(size: liveRefined ? 13 : 14, weight: liveRefined ? .heavy : .bold))
                     .foregroundColor(FanChatTheme.textPrimary)
             }
 
@@ -1096,7 +1165,7 @@ struct UpcomingGameRow: View {
             // Home team
             HStack(spacing: 6) {
                 Text(game.homeTeam.shortName)
-                    .font(.system(size: liveRefined ? 13 : 14, weight: .bold))
+                    .font(.system(size: liveRefined ? 13 : 14, weight: liveRefined ? .heavy : .bold))
                     .foregroundColor(FanChatTheme.textPrimary)
 
                 Text(game.homeTeam.logoEmoji)
@@ -1121,18 +1190,27 @@ struct UpcomingGameRow: View {
             .buttonStyle(.plain)
         }
         .padding(.horizontal, liveRefined ? 12 : 16)
-        .padding(.vertical, liveRefined ? 10 : 19)
+        // Refined gets +3 vertical padding (10→13) for ~+6pt total row
+        // height, hitting the lower bound of the requested +6–8pt.
+        .padding(.vertical, liveRefined ? 13 : 19)
         .background(
+            // Refined: lifted to FanChatTheme.backgroundTertiary for
+            // stronger contrast against the dark page bg. Still lighter
+            // than LIVE NOW cards (which sit at backgroundSecondary), so
+            // the secondary-to-primary visual hierarchy holds: LIVE
+            // cards read as the heavier surface, Coming Up reads as the
+            // lifted-but-quieter strip.
+            // `.current` keeps the original cardGradient for rollback.
             RoundedRectangle(cornerRadius: cornerRadius)
                 .fill(liveRefined
-                      ? AnyShapeStyle(FanChatTheme.backgroundSecondary.opacity(0.4))
+                      ? AnyShapeStyle(FanChatTheme.backgroundTertiary)
                       : AnyShapeStyle(FanChatTheme.cardGradient))
         )
         .overlay(
             RoundedRectangle(cornerRadius: cornerRadius)
                 .stroke(
-                    liveRefined ? Color.white.opacity(0.04) : FanChatTheme.backgroundTertiary,
-                    lineWidth: liveRefined ? 0.5 : 1
+                    liveRefined ? Color.clear : FanChatTheme.backgroundTertiary,
+                    lineWidth: liveRefined ? 0 : 1
                 )
         )
     }
