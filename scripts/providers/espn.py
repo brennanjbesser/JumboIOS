@@ -22,10 +22,19 @@ Design notes
 * Returns `[]` on "no live games right now" (NOT raises).
 * Raises `RuntimeError` on transient errors (timeout, non-2xx,
   malformed JSON) so the worker's retry/backoff layer decides.
-* Provider team IDs are ESPN's numeric `team.id` as a string
-  (e.g. `"12"` for the Chiefs). This is the value that appears in
-  game payloads and is therefore the right key for
-  `public.provider_team_mappings (provider='espn', provider_team_id='12')`.
+* Provider team IDs are ESPN's numeric ``team.id`` namespaced by
+  league (e.g. ``"nfl:12"`` for the Chiefs, ``"nba:13"`` for the
+  Lakers). The league prefix is mandatory because ESPN reuses small
+  integer IDs across leagues — without it, ``(provider='espn',
+  provider_team_id='1')`` collides between Atlanta Falcons (NFL),
+  Atlanta Hawks (NBA), Baltimore Orioles (MLB), and Boston Bruins
+  (NHL), which would silently corrupt
+  ``public.provider_team_mappings`` (natural key
+  ``(provider, provider_team_id)``). The format is
+  ``<league>:<espn_team_id>`` — colon separator picked specifically
+  to avoid the ``<league>_<abbreviation>`` fallback path in
+  ``TeamResolver`` (that fallback expects abbreviations, not numeric
+  IDs, so we don't want it firing for ESPN).
 * All timestamps are normalized to UTC, timezone-aware.
 """
 
@@ -90,6 +99,21 @@ _ESPN_STATUS_TO_CANONICAL: Dict[str, GameStatus] = {
 # Type alias for a pluggable HTTP getter — makes the class trivially
 # unit-testable by injecting a fake that returns canned JSON.
 HttpGet = Callable[[str, float], dict]
+
+
+def _namespaced_team_id(league: str, raw_espn_team_id: object) -> str:
+    """
+    Build the canonical ``<league>:<espn_team_id>`` provider_team_id.
+
+    ESPN reuses small integer team IDs across leagues, so the raw ID
+    alone is not unique under our ``(provider, provider_team_id)``
+    natural key. This helper is the SINGLE source of truth for the
+    namespacing convention — every emission site (scoreboard event
+    decode, fetch_teams) must funnel through it so the bootstrap-
+    generated SQL and the runtime ingest agree byte-for-byte on
+    provider_team_id values.
+    """
+    return f"{league.lower()}:{raw_espn_team_id}"
 
 
 # ─────────────────────────────────────────────────────────────────────
@@ -288,7 +312,7 @@ class ESPNProvider(SportsProvider):
             location = (team.get("location") or "").strip()
             teams.append(
                 ProviderTeamDTO(
-                    provider_team_id=str(team_id),
+                    provider_team_id=_namespaced_team_id(league, team_id),
                     league=league,
                     abbreviation=abbrev,
                     name=name,
@@ -462,8 +486,8 @@ class ESPNProvider(SportsProvider):
             provider_game_id=str(event_id),
             league=league,
             season=season,
-            home_provider_team_id=str(home_team_id),
-            away_provider_team_id=str(away_team_id),
+            home_provider_team_id=_namespaced_team_id(league, home_team_id),
+            away_provider_team_id=_namespaced_team_id(league, away_team_id),
             start_time=start_time,
             status=canonical_status,
             period=period_str,
