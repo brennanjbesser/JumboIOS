@@ -39,12 +39,20 @@ struct SportsTeam: Identifiable, Codable, Equatable, Hashable {
     var primaryColor: Color { Color(hex: primaryColorHex) }
     var secondaryColor: Color { Color(hex: secondaryColorHex) }
 
-    init(name: String, shortName: String, city: String, league: League, primaryColorHex: String, secondaryColorHex: String, logoEmoji: String) {
+    init(name: String, shortName: String, city: String, league: League, primaryColorHex: String, secondaryColorHex: String, logoEmoji: String, idOverride: UUID? = nil) {
         // The id is DERIVED from (league, shortName) — never random. This
         // means the same team produces the same UUID on every app launch and
         // on every machine, so a `team_id` written to Supabase today is
         // findable tomorrow. See `SportsTeam.stableID(league:shortName:)`.
-        self.id = SportsTeam.stableID(league: league, shortName: shortName)
+        //
+        // `idOverride` is an escape hatch for franchise relocations /
+        // rebrands where the league's identity is continuous but the
+        // (league, shortName) key has changed (e.g. Arizona Coyotes →
+        // Utah Mammoth). Preserving the legacy UUID across the rebrand
+        // keeps every persisted reference (Supabase rows, followed
+        // teams, posts) pointed at the same franchise. Use sparingly
+        // and document the reason at the call site.
+        self.id = idOverride ?? SportsTeam.stableID(league: league, shortName: shortName)
         self.name = name
         self.shortName = shortName
         self.city = city
@@ -232,7 +240,15 @@ struct TeamDatabase {
         SportsTeam(name: "Penguins", shortName: "PIT", city: "Pittsburgh", league: .nhl, primaryColorHex: "#000000", secondaryColorHex: "#FCB514", logoEmoji: "🐧"),
         SportsTeam(name: "Capitals", shortName: "WAS", city: "Washington", league: .nhl, primaryColorHex: "#C8102E", secondaryColorHex: "#041E42", logoEmoji: "🦅"),
         // Central
-        SportsTeam(name: "Coyotes", shortName: "ARI", city: "Arizona", league: .nhl, primaryColorHex: "#8C2633", secondaryColorHex: "#E2D6B5", logoEmoji: "🐺"),
+        // Arizona Coyotes → Utah Mammoth franchise relocation/rebrand.
+        // Continuous franchise identity, so we preserve the legacy
+        // (league=.nhl, shortName="ARI") UUID via `idOverride` —
+        // every persisted reference (Supabase rows, followed teams,
+        // posts.room_id history) keeps resolving to this team.
+        // Colors below are the initial officially announced Mammoth
+        // palette (navy primary, glacier-blue secondary); revisit if
+        // the NHL team branding package evolves.
+        SportsTeam(name: "Mammoth", shortName: "UTAH", city: "Utah", league: .nhl, primaryColorHex: "#010A26", secondaryColorHex: "#6CACE4", logoEmoji: "🦣", idOverride: UUID(uuidString: "378f0574-208a-5a9c-aa2c-7f5fc8bdd81d")!),
         SportsTeam(name: "Blackhawks", shortName: "CHI", city: "Chicago", league: .nhl, primaryColorHex: "#CF0A2C", secondaryColorHex: "#000000", logoEmoji: "🪶"),
         SportsTeam(name: "Avalanche", shortName: "COL", city: "Colorado", league: .nhl, primaryColorHex: "#6F263D", secondaryColorHex: "#236192", logoEmoji: "🏔️"),
         SportsTeam(name: "Stars", shortName: "DAL", city: "Dallas", league: .nhl, primaryColorHex: "#006847", secondaryColorHex: "#8F8F8C", logoEmoji: "⭐"),

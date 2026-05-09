@@ -156,7 +156,14 @@ INSERT INTO public.teams (
     ('6b4acc2e-5706-5560-9710-25791ecbaae8', 'nhl', 'Philadelphia', 'Flyers', 'PHI', 'PHI', '#F74902', '#000000'),
     ('14ed4dc4-c2b3-5c34-98ee-3a6c21c09959', 'nhl', 'Pittsburgh', 'Penguins', 'PIT', 'PIT', '#000000', '#FCB514'),
     ('8d68c4f8-623a-582b-b8ef-d2bb6180ccfd', 'nhl', 'Washington', 'Capitals', 'WAS', 'WAS', '#C8102E', '#041E42'),
-    ('378f0574-208a-5a9c-aa2c-7f5fc8bdd81d', 'nhl', 'Arizona', 'Coyotes', 'ARI', 'ARI', '#8C2633', '#E2D6B5'),
+    -- Arizona Coyotes → Utah Mammoth franchise relocation/rebrand.
+    -- Continuous franchise identity: the UUID below is the legacy
+    -- Coyotes UUID (preserved via TeamData.swift's idOverride hook)
+    -- so every persisted reference keeps resolving to this team.
+    -- Colors are the initial officially announced Mammoth palette
+    -- (navy primary, glacier-blue secondary); revisit if the team
+    -- branding package evolves.
+    ('378f0574-208a-5a9c-aa2c-7f5fc8bdd81d', 'nhl', 'Utah', 'Mammoth', 'UTAH', 'UTAH', '#010A26', '#6CACE4'),
     ('ccba440c-8ec0-5d71-8d6e-33880f4d0b33', 'nhl', 'Chicago', 'Blackhawks', 'CHI', 'CHI', '#CF0A2C', '#000000'),
     ('37ed5b13-55ee-5d02-9aea-763a98e16dfd', 'nhl', 'Colorado', 'Avalanche', 'COL', 'COL', '#6F263D', '#236192'),
     ('480f810a-4312-54cc-9e1e-3980f39bb9c1', 'nhl', 'Dallas', 'Stars', 'DAL', 'DAL', '#006847', '#8F8F8C'),
